@@ -3,7 +3,9 @@ package org.admarple.barbeque.client.s3;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.util.StringUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,7 +17,9 @@ import org.admarple.barbeque.SecretMetadata;
 import org.admarple.barbeque.VersionMetadata;
 import org.admarple.barbeque.client.SecretClient;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.Map;
 
@@ -33,7 +37,7 @@ public class S3SecretClient implements SecretClient {
             return mapper.readValue(object.getObjectContent(), clazz);
         } catch (AmazonClientException | IOException e) {
             log.warn("Error reading {}:{} from S3", bucketName, key, e);
-            throw new SecretException("Error reading from S3", e);
+            throw new SecretException(String.format("Error reading {}:{} from S3", bucketName, key), e);
         }
     }
 
@@ -58,7 +62,7 @@ public class S3SecretClient implements SecretClient {
             return convertMetadata(s3.getObjectMetadata(bucketName, key));
         } catch (AmazonClientException | IOException e) {
             log.warn("Error reading metadata for {}:{} from S3", bucketName, key, e);
-            throw new SecretException("Error reading metadata from S3", e);
+            throw new SecretException(String.format("Error reading metadata for {}:{} from S3", bucketName, key), e);
         }
     }
 
@@ -92,5 +96,29 @@ public class S3SecretClient implements SecretClient {
     public Secret fetchSecret(SecretMetadata secretMetadata, VersionMetadata versionMetadata) {
         String key = getVersionKey(secretMetadata.getSecretId(), versionMetadata.getVersion());
         return fetchContents(key, secretMetadata.getSecretClass());
+    }
+
+    public void putMetadata(SecretMetadata secretMetadata) {
+        String key = getMetadataKey(secretMetadata.getSecretId());
+        try {
+            s3.putObject(bucketName, key, mapper.writeValueAsString(secretMetadata));
+        } catch (AmazonClientException | IOException e) {
+            log.warn("Error writing {}:{} to S3", bucketName, key, e);
+            throw new SecretException(String.format("Error writing {}:{} to S3", bucketName, key), e);
+        }
+    }
+
+    public void putSecret(SecretMetadata secretMetadata, VersionMetadata versionMetadata, Secret secret) {
+        String key = getVersionKey(secretMetadata.getSecretId(), versionMetadata.getVersion());
+        try (InputStream stream = new ByteArrayInputStream(mapper.writeValueAsBytes(secret))) {
+            ObjectMetadata s3Metadata = convertMetadata(versionMetadata);
+            // For now, use S3-managed server-side encryption
+            s3Metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
+            PutObjectRequest putRequest = new PutObjectRequest(bucketName, key, stream, s3Metadata);
+            s3.putObject(putRequest);
+        } catch (AmazonClientException | IOException e) {
+            log.warn("Error writing {}:{} to S3", bucketName, key, e);
+            throw new SecretException(String.format("Error writing {}:{} to S3", bucketName, key), e);
+        }
     }
 }
