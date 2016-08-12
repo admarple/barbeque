@@ -16,8 +16,8 @@ public class VersionMetadataTest {
     public void setup() {
         versionMetadata = new VersionMetadata();
         versionMetadata.setVersion(BigInteger.TEN);
-        versionMetadata.setActivationTime(Instant.now().minusSeconds(10));
-        versionMetadata.setExpirationTime(versionMetadata.getActivationTime().plusSeconds(60));
+        versionMetadata.setActivation(Instant.now().minusSeconds(10));
+        versionMetadata.setExpiration(versionMetadata.getActivation().plusSeconds(60));
     }
 
     @Test
@@ -27,23 +27,23 @@ public class VersionMetadataTest {
 
     @Test
     public void testIsActiveNullExpiration() {
-        versionMetadata.setExpirationTime(null);
+        versionMetadata.setExpiration(null);
 
         assertThat(versionMetadata.isActive(), is(true));
     }
 
     @Test
     public void testIsActiveExpired() {
-        versionMetadata.setExpirationTime(versionMetadata.getExpirationTime().minusSeconds(120));
-        versionMetadata.setActivationTime(versionMetadata.getActivationTime().minusSeconds(120));
+        versionMetadata.setExpiration(versionMetadata.getExpiration().minusSeconds(120));
+        versionMetadata.setActivation(versionMetadata.getActivation().minusSeconds(120));
 
         assertThat(versionMetadata.isActive(), is(false));
     }
 
     @Test
     public void testIsActiveEarly() {
-        versionMetadata.setExpirationTime(versionMetadata.getExpirationTime().plusSeconds(120));
-        versionMetadata.setActivationTime(versionMetadata.getActivationTime().plusSeconds(120));
+        versionMetadata.setExpiration(versionMetadata.getExpiration().plusSeconds(120));
+        versionMetadata.setActivation(versionMetadata.getActivation().plusSeconds(120));
 
         assertThat(versionMetadata.isActive(), is(false));
     }

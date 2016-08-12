@@ -52,7 +52,7 @@ public class SecretManager<T extends Secret> {
         }
 
         if (currentVersionMetadata != null) {
-            Instant refreshBeforeExpiration = currentVersionMetadata.getExpirationTime().minusSeconds(refreshBeforeExpirySeconds);
+            Instant refreshBeforeExpiration = currentVersionMetadata.getExpiration().minusSeconds(refreshBeforeExpirySeconds);
             if (refreshBeforeExpiration.isBefore(Instant.now())) {
                 log.debug("Refreshing before expiration.");
                 return true;

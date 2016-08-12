@@ -37,16 +37,16 @@ public class S3SecretClient implements SecretClient {
             return mapper.readValue(object.getObjectContent(), clazz);
         } catch (AmazonClientException | IOException e) {
             log.warn("Error reading {}:{} from S3", bucketName, key, e);
-            throw new SecretException(String.format("Error reading {}:{} from S3", bucketName, key), e);
+            throw new SecretException(String.format("Error reading %s:%s from S3", bucketName, key), e);
         }
     }
 
     private String getMetadataKey(String secretId) {
-        return StringUtils.join(Secret.SEPARATOR, METADATA_PREFIX);
+        return StringUtils.join(Secret.SEPARATOR, secretId, METADATA_PREFIX);
     }
 
     private String getVersionKey(String secretId, BigInteger version) {
-        return StringUtils.join(Secret.SEPARATOR, METADATA_PREFIX);
+        return StringUtils.join(Secret.SEPARATOR, secretId, version.toString());
     }
 
     @Override
@@ -62,7 +62,7 @@ public class S3SecretClient implements SecretClient {
             return convertMetadata(s3.getObjectMetadata(bucketName, key));
         } catch (AmazonClientException | IOException e) {
             log.warn("Error reading metadata for {}:{} from S3", bucketName, key, e);
-            throw new SecretException(String.format("Error reading metadata for {}:{} from S3", bucketName, key), e);
+            throw new SecretException(String.format("Error reading metadata for %s:%s from S3", bucketName, key), e);
         }
     }
 
@@ -104,7 +104,7 @@ public class S3SecretClient implements SecretClient {
             s3.putObject(bucketName, key, mapper.writeValueAsString(secretMetadata));
         } catch (AmazonClientException | IOException e) {
             log.warn("Error writing {}:{} to S3", bucketName, key, e);
-            throw new SecretException(String.format("Error writing {}:{} to S3", bucketName, key), e);
+            throw new SecretException(String.format("Error writing %s:%s to S3", bucketName, key), e);
         }
     }
 
@@ -118,7 +118,7 @@ public class S3SecretClient implements SecretClient {
             s3.putObject(putRequest);
         } catch (AmazonClientException | IOException e) {
             log.warn("Error writing {}:{} to S3", bucketName, key, e);
-            throw new SecretException(String.format("Error writing {}:{} to S3", bucketName, key), e);
+            throw new SecretException(String.format("Error writing %s:%s to S3", bucketName, key), e);
         }
     }
 }

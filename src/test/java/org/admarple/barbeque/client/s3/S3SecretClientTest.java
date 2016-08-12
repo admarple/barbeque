@@ -37,8 +37,8 @@ public class S3SecretClientTest {
 
         versionMetadata = new VersionMetadata();
         versionMetadata.setVersion(BigInteger.TEN);
-        versionMetadata.setActivationTime(Instant.now());
-        versionMetadata.setExpirationTime(versionMetadata.getActivationTime().plusSeconds(10));
+        versionMetadata.setActivation(Instant.now());
+        versionMetadata.setExpiration(versionMetadata.getActivation().plusSeconds(10));
 
         s3Metadata = new ObjectMetadata();
     }

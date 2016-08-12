@@ -38,8 +38,8 @@ public class SecretManagerTest {
 
         versionMetadata = new VersionMetadata();
         versionMetadata.setVersion(secretMetadata.getCurrentVersion());
-        versionMetadata.setActivationTime(Instant.now());
-        versionMetadata.setExpirationTime(versionMetadata.getActivationTime().plusSeconds(3600));
+        versionMetadata.setActivation(Instant.now());
+        versionMetadata.setExpiration(versionMetadata.getActivation().plusSeconds(3600));
 
         CredentialPair pair = new CredentialPair();
         pair.setPrincipal("foo-principal");
@@ -93,7 +93,7 @@ public class SecretManagerTest {
     public void testGetSecretExpirationTooClose() throws Exception {
         secretManager.getSecret();
 
-        versionMetadata.setExpirationTime(Instant.now().plusSeconds(secretManager.getRefreshBeforeExpirySeconds() - 1));
+        versionMetadata.setExpiration(Instant.now().plusSeconds(secretManager.getRefreshBeforeExpirySeconds() - 1));
         Secret result = secretManager.getSecret();
 
         assertThat(result, equalTo(secret));
