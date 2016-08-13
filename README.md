@@ -30,5 +30,5 @@ for the bucket name).  The Policy would look like:
 When running the integration test, you can specify the AWS profile you setup, e.g.
 
 ```
-./gradlew test -Dtest.single=S3SecretClientIntegrationTest -Paws.profile=barbeque-build-local
+./gradlew :core:integrationTest -Paws.profile=barbeque-build-local
 ```
