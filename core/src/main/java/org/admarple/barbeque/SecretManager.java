@@ -18,13 +18,13 @@ public class SecretManager<T extends Secret> {
     private int refreshIntervalSeconds = 900;
     @Getter
     @Setter
-    private int refreshBeforeExpirySeconds = 300;
+    private int refreshBeforeExpirySeconds = 30;
 
     private SecretMetadata secretMetadata;
     private VersionMetadata currentVersionMetadata;
     private T secret;
     private String lastErrorMessage;
-    private Instant lastFetchTime;
+    private volatile Instant nextFetchTime;
 
 
     public SecretManager(SecretClient client, String secretId, Class<T> clazz) {
@@ -35,28 +35,23 @@ public class SecretManager<T extends Secret> {
 
     public T getSecret() {
         if (needsRefresh()) {
-            refresh();
+            synchronized (this) {
+                if (needsRefresh()) {
+                    try {
+                        refresh();
+                    } catch (RuntimeException e) {
+                        log.warn("Error refreshing {}, will continue using existing secret (if it exists)", secretId, e);
+                    }
+                }
+            }
         }
         return hopefullySecret();
     }
 
     private boolean needsRefresh() {
-        if (secretMetadata == null) {
+        if (nextFetchTime == null || nextFetchTime.isBefore(Instant.now())) {
+            log.debug("Refreshing {}", secretId);
             return true;
-        }
-
-        Instant refreshAfterInterval = lastFetchTime.plusSeconds(refreshIntervalSeconds);
-        if (refreshAfterInterval.isBefore(Instant.now())) {
-            log.debug("Refreshing after interval");
-            return true;
-        }
-
-        if (currentVersionMetadata != null) {
-            Instant refreshBeforeExpiration = currentVersionMetadata.getExpiration().minusSeconds(refreshBeforeExpirySeconds);
-            if (refreshBeforeExpiration.isBefore(Instant.now())) {
-                log.debug("Refreshing before expiration.");
-                return true;
-            }
         }
 
         return false;
@@ -66,12 +61,19 @@ public class SecretManager<T extends Secret> {
         secretMetadata = secretClient.fetchMetadata(secretId);
         if (secretMetadata.getSecretClass() != clazz) {
             lastErrorMessage = String.format("Secret type %s is not expected type %s", secretMetadata.getSecretClass(), clazz);
-            lastFetchTime = Instant.now();
+            nextFetchTime = Instant.now().plusSeconds(refreshIntervalSeconds);
             throw new SecretException(lastErrorMessage);
         }
         currentVersionMetadata = secretClient.fetchMetadata(secretId, secretMetadata.getCurrentVersion());
         secret = (T) secretClient.fetchSecret(secretMetadata, currentVersionMetadata);
-        lastFetchTime = Instant.now();
+
+        nextFetchTime = Instant.now().plusSeconds(refreshIntervalSeconds);
+        Instant refreshBeforeExpiration = currentVersionMetadata.getExpiration().minusSeconds(refreshBeforeExpirySeconds);
+        if (refreshBeforeExpiration.isBefore(nextFetchTime)) {
+            log.debug("Next refresh of {}{}{} scheduled at {} to avoid expiration",
+                    secretId, Secret.SEPARATOR, currentVersionMetadata.getVersion(), refreshBeforeExpiration);
+            nextFetchTime = refreshBeforeExpiration;
+        }
         lastErrorMessage = null;
     }
 
