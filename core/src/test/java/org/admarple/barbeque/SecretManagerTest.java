@@ -77,8 +77,8 @@ public class SecretManagerTest {
 
     @Test
     public void testGetSecretPastInterval() throws Exception {
-        secretManager.getSecret();
         secretManager.setRefreshIntervalSeconds(5);
+        secretManager.getSecret();
         Thread.sleep(5_000L);
 
         Secret result = secretManager.getSecret();
@@ -91,9 +91,9 @@ public class SecretManagerTest {
 
     @Test
     public void testGetSecretExpirationTooClose() throws Exception {
+        versionMetadata.setExpiration(Instant.now().plusSeconds(secretManager.getRefreshBeforeExpirySeconds() - 1));
         secretManager.getSecret();
 
-        versionMetadata.setExpiration(Instant.now().plusSeconds(secretManager.getRefreshBeforeExpirySeconds() - 1));
         Secret result = secretManager.getSecret();
 
         assertThat(result, equalTo(secret));

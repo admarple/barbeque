@@ -9,6 +9,8 @@ import com.amazonaws.util.StringUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.admarple.barbeque.Secret;
 import org.admarple.barbeque.SecretException;
@@ -23,6 +25,8 @@ import java.math.BigInteger;
 import java.util.Map;
 
 @Slf4j
+@Setter // To support Mockito's @Spy
+@NoArgsConstructor // To support Mockito's @Spy
 @AllArgsConstructor
 public class S3SecretClient implements SecretClient {
     static final String METADATA_PREFIX = "_metadata";

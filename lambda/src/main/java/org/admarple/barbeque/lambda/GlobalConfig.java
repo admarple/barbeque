@@ -15,6 +15,13 @@ public class GlobalConfig {
     @Getter(onMethod = @__({@DynamoDBAttribute}))
     private String secretBucketName;
 
+    /**
+     * This setter does nothing.  It exists to appease {@link DynamoDBMapper},
+     * which expects a setter.  Since there is only one GlobalConfig, the id
+     * should not (and cannot) be changed.
+     */
+    public void setId(String ignored) {}
+
     public static GlobalConfig load(DynamoDBMapper dynamoDBMapper) {
         return dynamoDBMapper.load(new GlobalConfig());
     }

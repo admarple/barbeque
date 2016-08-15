@@ -13,18 +13,4 @@ dependencies {
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.8.1'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.8.1'
     compile group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.8.1'
-
-    integrationTestCompile sourceSets.main.output
-    integrationTestCompile configurations.testCompile
-    integrationTestCompile sourceSets.test.output
-    integrationTestCompile configurations.testRuntime
-}
-
-task integrationTest(type: Test) {
-    testClassesDir = sourceSets.integrationTest.output.classesDir
-    classpath = sourceSets.integrationTest.runtimeClasspath
-
-    if (project.hasProperty('aws.profile')) {
-        systemProperty 'aws.profile', project.getProperty("aws.profile")
-    }
 }

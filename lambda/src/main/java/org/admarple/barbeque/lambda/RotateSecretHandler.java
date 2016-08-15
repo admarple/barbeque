@@ -4,7 +4,6 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,15 +15,11 @@ import org.admarple.barbeque.VersionMetadata;
 import org.admarple.barbeque.client.SecretClient;
 import org.admarple.barbeque.client.s3.S3SecretClient;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.math.BigInteger;
 import java.util.UUID;
 
 @Slf4j
-public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, RotateSecretResponse>,
-        RequestStreamHandler {
+public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, RotateSecretResponse> {
     private ObjectMapper mapper;
     private AmazonS3 amazonS3;
     private DynamoDBMapper dynamoDBMapper;
@@ -48,10 +43,12 @@ public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, 
             VersionMetadata newVersionMetadata = request.getVersionMetadata();
             secretClient().putSecret(existingSecretMetadata, newVersionMetadata, request.getNewSecret());
 
-            log.info("Updating expiration on previous version");
-            Secret oldSecret = secretClient().fetchSecret(existingSecretMetadata, oldVersionMetadata);
-            oldVersionMetadata.setExpiration(newVersionMetadata.getActivation().plusSeconds(request.getOverlapSeconds()));
-            secretClient().putSecret(existingSecretMetadata, oldVersionMetadata, oldSecret);
+            if ( ! oldVersionMetadata.equals(newVersionMetadata)) {
+                log.info("Updating expiration on previous version");
+                Secret oldSecret = secretClient().fetchSecret(existingSecretMetadata, oldVersionMetadata);
+                oldVersionMetadata.setExpiration(newVersionMetadata.getActivation().plusSeconds(request.getOverlapSeconds()));
+                secretClient().putSecret(existingSecretMetadata, oldVersionMetadata, oldSecret);
+            }
 
             log.info("Making new version the current version");
             existingSecretMetadata.setCurrentVersion(request.getVersion());
@@ -67,7 +64,7 @@ public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, 
         SecretMetadata existingSecretMetadata = secretClient().fetchMetadata(request.getSecretId());
         if (existingSecretMetadata == null) {
             if (isCreation(request)) {
-                log.info("Creating secret {}");
+                log.info("Creating secret {}", request.getSecretId());
                 existingSecretMetadata = request.getSecretMetadata();
             } else {
                 throw new SecretException("Secret does not exist, but rotation was requested");
@@ -109,6 +106,7 @@ public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, 
         }
     }
 
+    /*
     @Override
     public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) throws IOException {
         mapper = objectMapper();
@@ -116,38 +114,39 @@ public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, 
         RotateSecretResponse response = handleRequest(request, context);
         mapper.writeValue(outputStream, response);
     }
+    */
 
     /**
      * For the sake of expediency, start with dumb DI.  Eventually, I'd like to replace this with Spring Boot.
      */
-    private ObjectMapper objectMapper() {
+    public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.findAndRegisterModules();
         return mapper;
     }
 
-    private DynamoDBMapper dynamoDBMapper() {
+    public DynamoDBMapper dynamoDBMapper() {
         if (dynamoDBMapper == null) {
             dynamoDBMapper = new DynamoDBMapper(new AmazonDynamoDBClient());
         }
         return dynamoDBMapper;
     }
 
-    private LockManager lockManager() {
+    public LockManager lockManager() {
         if (lockManager == null) {
             lockManager = new LockManager(dynamoDBMapper());
         }
         return lockManager;
     }
 
-    private AmazonS3 amazonS3() {
+    public AmazonS3 amazonS3() {
         if (amazonS3 == null) {
             amazonS3 = new AmazonS3Client();
         }
         return amazonS3;
     }
 
-    private SecretClient secretClient() {
+    public SecretClient secretClient() {
         if (secretClient == null) {
             GlobalConfig globalConfig = GlobalConfig.load(dynamoDBMapper());
             secretClient = new S3SecretClient(amazonS3(), globalConfig.getSecretBucketName(), objectMapper());

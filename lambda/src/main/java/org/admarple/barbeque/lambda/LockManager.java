@@ -5,8 +5,11 @@ import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBSaveExpression;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
+import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
 import com.amazonaws.services.dynamodbv2.model.ConditionalOperator;
 import com.amazonaws.services.dynamodbv2.model.ExpectedAttributeValue;
+import lombok.extern.slf4j.Slf4j;
+import org.admarple.barbeque.SecretException;
 
 import java.time.Instant;
 
@@ -26,6 +29,7 @@ import java.time.Instant;
  * With these two assumptions, a conditional PUT where the condition of:
  *   existing.expiration + MAX_SKEW < new.creation
  */
+@Slf4j
 public class LockManager {
     private static final int MAX_SKEW_SECONDS = 15 * 60;
 
@@ -51,15 +55,21 @@ public class LockManager {
         lock.setExpirationSeconds(expirationSeconds);
         DynamoDBSaveExpression saveExpression = new DynamoDBSaveExpression()
                 .withConditionalOperator(ConditionalOperator.OR)
-                .withExpectedEntry("expiration", new ExpectedAttributeValue().withExists(false))
+                .withExpectedEntry("id", new ExpectedAttributeValue().withExists(false))
                 .withExpectedEntry("expiration", new ExpectedAttributeValue()
                         .withComparisonOperator(ComparisonOperator.LT)
                         .withValue(new AttributeValue()
                                 .withN(Long.toString(Instant.now().plusSeconds(MAX_SKEW_SECONDS).getEpochSecond()))
                         )
                 );
-        dynamoDBMapper.save(lock, saveExpression);
-        return lock;
+
+        try {
+            dynamoDBMapper.save(lock, saveExpression);
+            return lock;
+        } catch (ConditionalCheckFailedException e) {
+            log.info("Lock is already held by another client");
+            throw new SecretException("Lock is already held by another client", e);
+        }
     }
 
     public void release(Lock lock) {
