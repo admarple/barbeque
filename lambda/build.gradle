@@ -1,5 +1,16 @@
 apply plugin: "java"
 
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath group: 'com.github.jengelman.gradle.plugins', name: 'shadow', version: '1.2.3'
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
 sourceSets {
     integrationTest
 }
@@ -7,8 +18,11 @@ sourceSets {
 dependencies {
     compileOnly group: 'org.projectlombok', name: 'lombok', version: '1.16.10'
 
+    compile project(':core')
+
     compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
-    compile group: 'com.amazonaws', name: 'aws-java-sdk', version: '1.11.24'
+    compile group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.11.26'
+    compile group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '1.11.26'
     compile group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.1.0'
     compile group: 'com.amazonaws', name: 'aws-lambda-java-events', version: '1.1.0'
 
