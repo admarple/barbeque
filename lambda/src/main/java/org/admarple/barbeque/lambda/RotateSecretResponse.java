@@ -1,4 +1,4 @@
-package org.admarple.barbeue.lambda;
+package org.admarple.barbeque.lambda;
 
 import lombok.Data;
 

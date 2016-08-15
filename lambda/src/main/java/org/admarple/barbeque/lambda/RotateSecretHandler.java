@@ -1,4 +1,4 @@
-package org.admarple.barbeue.lambda;
+package org.admarple.barbeque.lambda;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
