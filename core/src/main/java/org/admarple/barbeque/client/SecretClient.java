@@ -44,4 +44,8 @@ public interface SecretClient {
         }
         return fetchSecret(secretMetadata, versionMetadata);
     }
+
+    void putMetadata(SecretMetadata secretMetadata);
+
+    void putSecret(SecretMetadata secretMetadata, VersionMetadata versionMetadata, Secret secret);
 }

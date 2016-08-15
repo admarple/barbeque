@@ -24,6 +24,7 @@ import java.time.temporal.ChronoUnit;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 public class S3SecretClientIntegrationTest {
@@ -37,12 +38,21 @@ public class S3SecretClientIntegrationTest {
     VersionMetadata versionMetadata;
     Secret secret;
 
+    @BeforeClass
+    public static void setupBucketInS3() {
+        S3SecretClientIntegrationTest test = new S3SecretClientIntegrationTest();
+        test.setupClients();
+
+        if ( ! test.s3.doesBucketExist(TEST_BUCKET_NAME)) {
+            CreateBucketRequest request = new CreateBucketRequest(TEST_BUCKET_NAME);
+            test.s3.createBucket(request);
+        }
+    }
+
     @Before
     public void setup() {
-        s3 = new AmazonS3Client();
-        mapper = new ObjectMapper();
-        mapper.findAndRegisterModules();
-        s3SecretClient = new S3SecretClient(s3, TEST_BUCKET_NAME, mapper);
+        setupClients();
+        setupSecretInS3();
     }
 
     @After
@@ -50,15 +60,11 @@ public class S3SecretClientIntegrationTest {
         emptyBucket();
     }
 
-    @BeforeClass
-    public static void setupBucketInS3() {
-        S3SecretClientIntegrationTest test = new S3SecretClientIntegrationTest();
-        test.setup();
-
-        if ( ! test.s3.doesBucketExist(TEST_BUCKET_NAME)) {
-            CreateBucketRequest request = new CreateBucketRequest(TEST_BUCKET_NAME);
-            test.s3.createBucket(request);
-        }
+    private void setupClients() {
+        s3 = new AmazonS3Client();
+        mapper = new ObjectMapper();
+        mapper.findAndRegisterModules();
+        s3SecretClient = new S3SecretClient(s3, TEST_BUCKET_NAME, mapper);
     }
 
     private void setupSecretInS3() {
@@ -98,7 +104,7 @@ public class S3SecretClientIntegrationTest {
             } else {
                 break;
             }
-        };
+        }
         VersionListing list = s3.listVersions(new ListVersionsRequest().withBucketName(TEST_BUCKET_NAME));
         for (S3VersionSummary s : list.getVersionSummaries()) {
             s3.deleteVersion(TEST_BUCKET_NAME, s.getKey(), s.getVersionId());
@@ -106,29 +112,31 @@ public class S3SecretClientIntegrationTest {
     }
 
     @Test
-    public void testPutMetadata() {
-        setupSecretInS3();
+    public void testPut() {
+        // PUT is already done as part of setupSecretsInS3()
+        String metadataKey = secretMetadata.getSecretId() + Secret.SEPARATOR + S3SecretClient.METADATA_PREFIX;
+        assertThat(s3.doesObjectExist(TEST_BUCKET_NAME, metadataKey), is(true));
 
-        String expectedKey = secretMetadata.getSecretId() + Secret.SEPARATOR + S3SecretClient.METADATA_PREFIX;
-        assertThat(s3.doesObjectExist(TEST_BUCKET_NAME, expectedKey), is(true));
+        String versionKey = secretMetadata.getSecretId() + Secret.SEPARATOR + versionMetadata.getVersion();
+        assertThat(s3.doesObjectExist(TEST_BUCKET_NAME, versionKey), is(true));
+    }
+
+    @Test
+    public void testFetchMetadata() {
         assertThat(s3SecretClient.fetchMetadata(secretMetadata.getSecretId()), equalTo(secretMetadata));
     }
 
     @Test
-    public void testPutSecret() {
-        setupSecretInS3();
-
-        String expectedKey = secretMetadata.getSecretId() + Secret.SEPARATOR + versionMetadata.getVersion();
-        assertThat(s3.doesObjectExist(TEST_BUCKET_NAME, expectedKey), is(true));
+    public void testFetchSecret() {
         assertThat(s3SecretClient.fetchMetadata(secretMetadata.getSecretId(), versionMetadata.getVersion()), equalTo(versionMetadata));
         assertThat(s3SecretClient.fetchSecret(secretMetadata, versionMetadata), equalTo(secret));
     }
 
     @Test
-    public void testFetchSecret() {
-        setupSecretInS3();
+    public void testFetchSecretNonexistent() {
+        versionMetadata.setVersion(versionMetadata.getVersion().add(BigInteger.ONE));
 
-        assertThat(s3SecretClient.fetchSecret(secretMetadata), equalTo(secret));
+        assertThat(s3SecretClient.fetchSecret(secretMetadata, versionMetadata), is(nullValue()));
     }
 
 }

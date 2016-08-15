@@ -32,8 +32,14 @@ public class S3SecretClient implements SecretClient {
     private ObjectMapper mapper;
 
     private <T> T fetchContents(String key, Class<T> clazz) {
-        try (S3Object object = s3.getObject(bucketName, key)) {
-            return mapper.readValue(object.getObjectContent(), clazz);
+        try {
+            if (s3.doesObjectExist(bucketName, key)) {
+                try (S3Object object = s3.getObject(bucketName, key)) {
+                    return mapper.readValue(object.getObjectContent(), clazz);
+                }
+            } else {
+                return null;
+            }
         } catch (AmazonClientException | IOException e) {
             log.warn("Error reading {}:{} from S3", bucketName, key, e);
             throw new SecretException(String.format("Error reading %s:%s from S3", bucketName, key), e);
@@ -58,7 +64,11 @@ public class S3SecretClient implements SecretClient {
     public VersionMetadata fetchMetadata(String secretId, BigInteger version) {
         String key = getVersionKey(secretId, version);
         try {
-            return convertMetadata(s3.getObjectMetadata(bucketName, key));
+            if (s3.doesObjectExist(bucketName, key)) {
+                return convertMetadata(s3.getObjectMetadata(bucketName, key));
+            } else {
+                return null;
+            }
         } catch (AmazonClientException | IOException e) {
             log.warn("Error reading metadata for {}:{} from S3", bucketName, key, e);
             throw new SecretException(String.format("Error reading metadata for %s:%s from S3", bucketName, key), e);
@@ -68,6 +78,7 @@ public class S3SecretClient implements SecretClient {
     /**
      * {@link VersionMetadata} is stored in {@link ObjectMetadata#getUserMetadata()}.  We let
      * Jackson do the conversion from Map<String, String> and then to VersionMetadata.
+     *
      * @param s3Metadata
      * @return
      * @throws IOException
@@ -79,6 +90,7 @@ public class S3SecretClient implements SecretClient {
 
     /**
      * Reverse the conversion from {@link #convertMetadata(ObjectMetadata)}.
+     *
      * @param versionMetadata
      * @return
      * @throws IOException
@@ -97,6 +109,7 @@ public class S3SecretClient implements SecretClient {
         return fetchContents(key, secretMetadata.getSecretClass());
     }
 
+    @Override
     public void putMetadata(SecretMetadata secretMetadata) {
         String key = getMetadataKey(secretMetadata.getSecretId());
         try {
@@ -107,6 +120,7 @@ public class S3SecretClient implements SecretClient {
         }
     }
 
+    @Override
     public void putSecret(SecretMetadata secretMetadata, VersionMetadata versionMetadata, Secret secret) {
         String key = getVersionKey(secretMetadata.getSecretId(), versionMetadata.getVersion());
         try (InputStream stream = new ByteArrayInputStream(mapper.writeValueAsBytes(secret))) {
