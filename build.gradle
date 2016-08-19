@@ -4,7 +4,7 @@ subprojects {
     sourceCompatibility = 1.8
     targetCompatibility = 1.8
 
-    group = 'org.admarple'
+    group = 'com.github.admarple'
     version = 0.1
 
     repositories {

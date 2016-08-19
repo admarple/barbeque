@@ -19,8 +19,8 @@ for the bucket name).  The Policy would look like:
         "s3:*"
       ],
       "Resource": [
-        "arn:aws:s3:::org.admarple.barbeque.test",
-        "arn:aws:s3:::org.admarple.barbeque.test/*"
+        "arn:aws:s3:::com.github.admarple.barbeque.test",
+        "arn:aws:s3:::com.github.admarple.barbeque.test/*"
       ]
     }
   ]
