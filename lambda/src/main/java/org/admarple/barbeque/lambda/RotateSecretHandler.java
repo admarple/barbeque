@@ -3,7 +3,7 @@ package org.admarple.barbeque.lambda;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,19 +15,21 @@ import org.admarple.barbeque.VersionMetadata;
 import org.admarple.barbeque.client.SecretClient;
 import org.admarple.barbeque.client.s3.S3SecretClient;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.util.UUID;
 
 @Slf4j
-public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, RotateSecretResponse> {
+public class RotateSecretHandler implements RequestStreamHandler {
     private ObjectMapper mapper;
     private AmazonS3 amazonS3;
     private DynamoDBMapper dynamoDBMapper;
     private LockManager lockManager;
     private SecretClient secretClient;
 
-    @Override
-    public RotateSecretResponse handleRequest(RotateSecretRequest request, Context context) {
+    public RotateSecretResponse handleRequestInternal(RotateSecretRequest request, Context context) {
         String lambdaId = UUID.randomUUID().toString();
 
         // lock on the new version
@@ -106,22 +108,22 @@ public class RotateSecretHandler implements RequestHandler<RotateSecretRequest, 
         }
     }
 
-    /*
     @Override
     public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) throws IOException {
         mapper = objectMapper();
         RotateSecretRequest request = mapper.readValue(inputStream, RotateSecretRequest.class);
-        RotateSecretResponse response = handleRequest(request, context);
+        RotateSecretResponse response = handleRequestInternal(request, context);
         mapper.writeValue(outputStream, response);
     }
-    */
 
     /**
      * For the sake of expediency, start with dumb DI.  Eventually, I'd like to replace this with Spring Boot.
      */
     public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.findAndRegisterModules();
+        if (mapper == null) {
+            mapper = new ObjectMapper();
+            mapper.findAndRegisterModules();
+        }
         return mapper;
     }
 

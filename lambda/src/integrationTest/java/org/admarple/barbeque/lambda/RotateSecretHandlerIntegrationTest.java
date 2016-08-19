@@ -19,6 +19,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
@@ -91,14 +93,21 @@ public class RotateSecretHandlerIntegrationTest {
     }
 
     @Test
+    public void testHandleRequestAsStream() throws Exception {
+        byte[] requestBytes = handler.objectMapper().writeValueAsBytes(request);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(requestBytes.length);
+        handler.handleRequest(new ByteArrayInputStream(requestBytes), outputStream, context);
+    }
+
+    @Test
     public void testHandleRequest() {
-        handler.handleRequest(request, context);
+        handler.handleRequestInternal(request, context);
     }
 
     @Test(expected = SecretException.class)
     public void testHandRequestDoubleCreate() {
-        handler.handleRequest(request, context);
-        handler.handleRequest(request, context);
+        handler.handleRequestInternal(request, context);
+        handler.handleRequestInternal(request, context);
     }
 
     /**
@@ -121,7 +130,7 @@ public class RotateSecretHandlerIntegrationTest {
         for (int i = 0; i < 2; i++) {
             executorService.submit(() -> {
                 try {
-                    handler.handleRequest(request, context);
+                    handler.handleRequestInternal(request, context);
                 } catch (SecretException e) {
                     secretExceptions.incrementAndGet();
                 }
@@ -142,13 +151,13 @@ public class RotateSecretHandlerIntegrationTest {
                 .when(s3SecretClient).putSecret(any(SecretMetadata.class), any(VersionMetadata.class), any(Secret.class));
 
         try {
-            handler.handleRequest(request, context);
+            handler.handleRequestInternal(request, context);
             fail();
         } catch (SecretException e) {
             assertThat(e.getMessage(), equalTo("Should release lock"));
         } catch (Exception e) {
             fail();
         }
-        handler.handleRequest(request, context);
+        handler.handleRequestInternal(request, context);
     }
 }
